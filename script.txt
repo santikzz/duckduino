@@ -1,0 +1,46 @@
+REM ============================================================
+REM duckduino symbol test payload
+REM copy this file to the root of the microsd card as script.txt
+REM ============================================================
+REM   ALTCODES ON     windows alt+numpad codes, needs numlock on (default)
+REM   ALTCODES LINUX  linux gui apps, ibus unicode entry
+REM   ALTCODES OFF    raw positions, only if the host layout matches
+
+DEFAULT_DELAY 60
+DELAY 1000
+
+GUI r
+DELAY 400
+STRING notepad
+ENTER
+DELAY 1200
+
+ALTCODES ON
+
+STRING abcdefghijklmnopqrstuvwxyz
+ENTER
+STRING ABCDEFGHIJKLMNOPQRSTUVWXYZ
+ENTER
+STRING 0123456789
+ENTER
+ENTER
+STRING . , : ; ? ! " '
+ENTER
+STRING ( ) [ ] { } < >
+ENTER
+STRING + - * / = < > % ^ ~
+ENTER
+STRING | & $ # @ \ ` _
+ENTER
+ENTER
+STRING grep -r "TODO" ./src | sort -u > out.txt 2>&1 &
+ENTER
+STRING if (a >= 1 && b != 2) { printf("%d\n", a ^ b); }
+ENTER
+STRING user@host:~$ echo "PATH=$PATH size=100%"
+ENTER
+STRING {"key": "value", "n": 42, "ok": true}
+ENTER
+ENTER
+STRING acentos: a e i o u, con tilde: ����� � � �qu�? �hola!
+ENTER

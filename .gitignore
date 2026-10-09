@@ -1,0 +1,4 @@
+legacy/
+assets/
+/*.md
+!README.md
