@@ -5,11 +5,11 @@
 
 #include <SPI.h>
 #include <SD.h>
-#include <Keyboard.h>
+#include <HID-Project.h>
 
 #define SDCARD_CS 4
 #define PAYLOAD_FILE "script.txt"
-#define LED 30  // tx led, active low
+#define LED 30  // tx led
 
 enum SymbolMode { SYM_WIN, SYM_LINUX, SYM_RAW };
 SymbolMode symbolMode = SYM_WIN;
@@ -17,14 +17,17 @@ SymbolMode symbolMode = SYM_WIN;
 int defaultDelay = 0;
 String previousLine = "";
 
-// hid keycodes for numpad digits 0-9
-const uint8_t KEYPAD[10] = { 0xEA, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9 };
+// numpad digit keys 0-9, used by windows alt codes
+const KeyboardKeycode KEYPAD[10] = {
+  KEYPAD_0, KEYPAD_1, KEYPAD_2, KEYPAD_3, KEYPAD_4,
+  KEYPAD_5, KEYPAD_6, KEYPAD_7, KEYPAD_8, KEYPAD_9
+};
 
 void setup() {
   pinMode(LED, OUTPUT);
   led(LED, false);
 
-  Keyboard.begin();
+  BootKeyboard.begin();
 
   if (!SD.begin(SDCARD_CS)) {
     errorPulse();
@@ -34,6 +37,8 @@ void setup() {
   if (!payload) {
     errorPulse();
   }
+
+  ensureNumLock();
 
   led(LED, true); // on = running
   while (payload.available()) {
@@ -46,6 +51,15 @@ void setup() {
 }
 
 void loop() {}
+
+// windows alt codes need numlock on
+void ensureNumLock() {
+  delay(500); // let the host send its first led report after enumeration
+  if (!(BootKeyboard.getLeds() & LED_NUM_LOCK)) {
+    BootKeyboard.write(KEY_NUM_LOCK);
+    delay(50);
+  }
+}
 
 String readLine(File &f) {
   String line = "";
@@ -93,7 +107,7 @@ void typeString(String s) {
   for (unsigned int i = 0; i < s.length(); i++) {
     char c = s[i];
     if (symbolMode == SYM_RAW || isBasic(c)) {
-      Keyboard.write(c);
+      BootKeyboard.write(c);
     } else if (symbolMode == SYM_LINUX) {
       unicodeLinux((uint8_t)c);
     } else {
@@ -112,39 +126,39 @@ bool isBasic(char c) {
 
 // windows alt+numpad code, eg 64 -> alt+0064 = @. leading 0 = windows-1252.
 void altCode(uint8_t code) {
-  Keyboard.press(KEY_LEFT_ALT);
+  BootKeyboard.press(KEY_LEFT_ALT);
   tapKeypad(0);
   char digits[4];
   itoa(code, digits, 10);
   for (byte i = 0; digits[i] != '\0'; i++) {
     tapKeypad(digits[i] - '0');
   }
-  Keyboard.release(KEY_LEFT_ALT);
+  BootKeyboard.release(KEY_LEFT_ALT);
   delay(5);
 }
 
 void tapKeypad(uint8_t d) {
-  Keyboard.press(KEYPAD[d]);
+  BootKeyboard.press(KEYPAD[d]);
   delay(5);
-  Keyboard.release(KEYPAD[d]);
+  BootKeyboard.release(KEYPAD[d]);
   delay(5);
 }
 
 // linux ibus/gtk unicode entry: ctrl+shift+u, hex codepoint, enter. the byte
 // value is the latin-1 codepoint, which matches unicode for 0x00-0xFF.
 void unicodeLinux(uint8_t code) {
-  Keyboard.press(KEY_LEFT_CTRL);
-  Keyboard.press(KEY_LEFT_SHIFT);
-  Keyboard.press('u');
+  BootKeyboard.press(KEY_LEFT_CTRL);
+  BootKeyboard.press(KEY_LEFT_SHIFT);
+  BootKeyboard.press('u');
   delay(5);
-  Keyboard.releaseAll();
+  BootKeyboard.releaseAll();
   char hex[3];
   itoa(code, hex, 16);
   for (byte i = 0; hex[i] != '\0'; i++) {
-    Keyboard.write(hex[i]);
+    BootKeyboard.write(hex[i]);
     delay(5);
   }
-  Keyboard.write(KEY_RETURN);
+  BootKeyboard.write(KEY_ENTER);
   delay(5);
 }
 
@@ -157,27 +171,27 @@ void pressCombo(String line) {
     if (token.length() > 0) pressKey(token);
     start = space + 1;
   }
-  Keyboard.releaseAll();
+  BootKeyboard.releaseAll();
 }
 
 void pressKey(String key) {
-  uint8_t code = keyCode(key);
-  if (code) {
-    Keyboard.press(code);
+  KeyboardKeycode code = keyCode(key);
+  if (code != KEY_RESERVED) {
+    BootKeyboard.press(code);
   } else if (key.length() == 1) {
-    Keyboard.press(key[0]);
+    BootKeyboard.press((uint8_t)key[0]);
   }
 }
 
-uint8_t keyCode(String key) {
-  if (key == "ENTER") return KEY_RETURN;
+KeyboardKeycode keyCode(String key) {
+  if (key == "ENTER") return KEY_ENTER;
   if (key == "GUI" || key == "WINDOWS") return KEY_LEFT_GUI;
   if (key == "SHIFT") return KEY_LEFT_SHIFT;
   if (key == "ALT") return KEY_LEFT_ALT;
   if (key == "CTRL" || key == "CONTROL") return KEY_LEFT_CTRL;
   if (key == "TAB") return KEY_TAB;
   if (key == "ESC" || key == "ESCAPE") return KEY_ESC;
-  if (key == "SPACE") return ' ';
+  if (key == "SPACE") return KEY_SPACE;
   if (key == "DELETE") return KEY_DELETE;
   if (key == "BACKSPACE") return KEY_BACKSPACE;
   if (key == "HOME") return KEY_HOME;
@@ -202,7 +216,7 @@ uint8_t keyCode(String key) {
   if (key == "F10") return KEY_F10;
   if (key == "F11") return KEY_F11;
   if (key == "F12") return KEY_F12;
-  return 0;
+  return KEY_RESERVED;
 }
 
 void led(uint8_t pin, bool on) {
