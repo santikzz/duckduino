@@ -1,6 +1,6 @@
 # duckduino
 
-An SD-driven USB keyboard macro device. An Arduino Pro Micro reads a plain-text script from a microSD card and types it on the host over USB HID. Good for automating repetitive keystroke sequences, demos, and setup routines.
+My own re-implementation of duckduino. An SD-driven USB keyboard macro device. An Arduino Pro Micro reads a plain-text script from a microSD card and types it on the host over USB HID. Good for automating repetitive keystroke sequences, demos, and setup routines.
 
 Symbols are typed in a layout-safe way, so the same script produces the right characters on different keyboard layouts (US, Spanish, and others). For academic and authorized use only.
 
